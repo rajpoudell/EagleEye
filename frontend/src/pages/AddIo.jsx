@@ -1,4 +1,7 @@
-import React, { useState } from "react";
+import { useState } from "react";
+import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
+import { createIO } from "../services/api";
 
 const AddIo = () => {
   const [formData, setFormData] = useState({
@@ -7,22 +10,34 @@ const AddIo = () => {
     Gmail: "",
     Station: "",
   });
-
+  const navigate = useNavigate();
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // You can send this to backend using axios/fetch
-    console.log("Form submitted:", formData);
+    try {
+      await createIO(formData);
+      navigate("/io");
+      toast.success("IO added successfully!", {
+        position: "top-right",
+        duration: 2000,
+      });
+    } catch (err) {
+      console.error("Failed to add IO:", err);
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-md mx-auto space-y-4 p-6 backdrop-blur-sm bg-transparent  rounded shadow ">
-      <h2 className="text-xl font-bold mb-4 text-center">Officer Registration Form</h2>
+    <form
+      onSubmit={handleSubmit}
+      className="max-w-md mx-auto space-y-4 p-6 backdrop-blur-sm bg-transparent  rounded shadow "
+    >
+      <h2 className="text-xl font-bold mb-4 text-center">
+        Officer Registration Form
+      </h2>
 
       <div>
         <label className="block font-medium">Name</label>
@@ -74,7 +89,8 @@ const AddIo = () => {
 
       <button
         type="submit"
-        className="px-2 py-2 w-full text-center gap-2 bg-red-600 text-white rounded-md  max-w-sm hover:bg-red-700 "      >
+        className="px-2 py-2 w-full text-center gap-2 bg-red-600 text-white rounded-md  max-w-sm hover:bg-red-700 "
+      >
         Submit
       </button>
     </form>

@@ -1,32 +1,32 @@
 import { useEffect, useState } from "react";
-import toast from "react-hot-toast";
 import { MdAdd } from "react-icons/md";
 import { Link } from "react-router-dom";
-import { deleteIO, getIO } from "../services/api";
+import { getStation } from "../services/api";
 
-const IO = () => {
+const Station = () => {
   const [data, setData] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   const handleDelete = async (id) => {
-    try {
-      await deleteIO(id);
-      setData((prev) => prev.filter((item) => item.UniqueID !== id));
-      toast.success("IO deleted successfully!", {
-        position: "top-right",
-        duration: 2000,
-      });
-    } catch (err) {
-      console.error("Delete failed:", err);
-      toast.error("Failed to delete IO", {
-        position: "top-right",
-      });
-    }
+    // try {
+    //   await deleteIO(id);
+    //   setData((prev) => prev.filter((item) => item.UniqueID !== id));
+    //   toast.success("IO deleted successfully!", {
+    //     position: "top-right",
+    //     duration: 2000,
+    //   });
+    // } catch (err) {
+    //   console.error("Delete failed:", err);
+    //   toast.error("Failed to delete IO", {
+    //     position: "top-right",
+    //   });
+    // }
+    console.log(id);
   };
   useEffect(() => {
     const getData = async () => {
       try {
-        const result = await getIO();
+        const result = await getStation();
         setData(result);
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -38,14 +38,11 @@ const IO = () => {
   }, []);
   return (
     <div>
-      <h2 className="text-3xl font-bold text-center mb-6">
-        Investigating Police Officer
-      </h2>
+      <h2 className="text-3xl font-bold text-center mb-6">Police Stations</h2>
       <div className="flex justify-between mb-4">
-        <Link to="/io/add">
+        <Link to="#">
           <button className="px-2 py-2 flex items-center gap-2 bg-red-600 text-white rounded-md  max-w-sm hover:bg-red-700 ">
-            {" "}
-            <MdAdd className="h-5 w-5" /> Add IO
+            <MdAdd className="h-5 w-5" /> Add Station
           </button>
         </Link>
         <input
@@ -65,10 +62,10 @@ const IO = () => {
                 UniqueID:
               </th>
               <th scope="col" className="px-6 py-3">
-                Officer Name:
+                Station Name:
               </th>
               <th scope="col" className="px-6 py-3">
-                Station
+                Station Address
               </th>
               <th scope="col" className="px-6 py-3">
                 Gmail
@@ -99,7 +96,7 @@ const IO = () => {
                     >
                       {item.Name}
                     </th>
-                    <td className="px-6 py-4">{item.Station}</td>
+                    <td className="px-6 py-4">{item.Address}</td>
                     <td className="px-6 py-4">{item.Gmail}</td>
                     <td className="px-6 py-4">{item.contact_number}</td>
                     <td className="px-6 py-4">
@@ -119,4 +116,4 @@ const IO = () => {
   );
 };
 
-export default IO;
+export default Station;

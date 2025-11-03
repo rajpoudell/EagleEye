@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import { useState } from "react";
 
-import Sidebar from "./Sidebar";
-import Header from "./Header";
+import { Toaster } from "react-hot-toast";
 import bgImage from "../../assets/background image.png";
+import Header from "./Header";
+import Sidebar from "./Sidebar";
 
 const Layout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -22,6 +23,7 @@ const Layout = ({ children }) => {
       <main className="pt-16 lg:pl-64  ">
         <div className="p-6 ">{children}</div>
       </main>
+      <Toaster position="top-center" reverseOrder={false} />
     </div>
   );
 };

@@ -1,18 +1,16 @@
-import React from "react";
-
-import { CgProfile } from "react-icons/cg";
 import { FaBars } from "react-icons/fa6";
-import { Link } from "react-router-dom";
-import Button from "../common/Button";
 
 const Header = ({ toggleSidebar }) => {
-  const isLoggedIn =  true
-  // localStorage.getItem("token");
-const logout = () => {
-  localStorage.removeItem("token");
-  localStorage.removeItem("name");
-  window.location.reload();
-}
+  // const user = localStorage.getItem("user");
+
+  // const isLoggedIn = user !== null;
+
+  // // localStorage.getItem("token");
+  // const logout = () => {
+  //   localStorage.removeItem("token");
+  //   localStorage.removeItem("name");
+  //   window.location.reload();
+  // };
   return (
     <header className="   bg-gray-50 fixed left-0 right-0 top-0 z-10 flex  h-16 items-center lg:justify-end justify-between shadow-xl/15 rounded  px-4 lg:left-64">
       <button
@@ -21,9 +19,9 @@ const logout = () => {
       >
         <FaBars className="h-6 w-6" />
       </button>
-      <div className="flex  items-center  space-x-4 gap-3">
-
-        {isLoggedIn ? (
+      {/*
+      <div className="flex  items-center  space-x-4 gap-3 ">
+         {isLoggedIn ? (
           <>
             <h2 className="cursor-default">
               <span className="font-bold gap-1">Hi !</span>
@@ -41,10 +39,17 @@ const logout = () => {
           </>
         ) : (
           <Link to="/login">
-            <Button name="Login" />
+            <Button name="Logout" />
           </Link>
-        )}
+        )} 
       </div>
+         */}
+      <h2 align="center" className="flex ">
+        EagleEye{" "}
+        <span className="hidden sm:block">
+          - Criminal Tracking and Alert System
+        </span>
+      </h2>
     </header>
   );
 };

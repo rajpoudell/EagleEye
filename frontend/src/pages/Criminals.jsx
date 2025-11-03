@@ -1,12 +1,18 @@
-import React, { useEffect, useState } from "react";
-import { geCriminals, handleDelete } from "../sevices/api";
-import { Link } from "react-router-dom";
+/* eslint-disable no-unused-vars */
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { getCriminals, handleDelete } from "../services/api";
 
 const Criminals = () => {
+  const navigate = useNavigate();
+  const handleEditRedirect = (criminal) => {
+    navigate("/add-criminal", { state: { criminal } });
+  };
   const [selectedCriminal, setSelectedCriminal] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   const [data, setData] = useState(null);
+
   const [editForm, setEditForm] = useState({
     Name: "",
     contact: "",
@@ -27,7 +33,7 @@ const Criminals = () => {
   useEffect(() => {
     const getData = async () => {
       try {
-        const result = await geCriminals();
+        const result = await getCriminals();
         setData(result);
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -36,6 +42,7 @@ const Criminals = () => {
     };
     getData();
   }, [selectedCriminal]);
+
   const closeModal = () => {
     setSelectedCriminal(null);
     setEditForm({
@@ -51,7 +58,8 @@ const Criminals = () => {
   const handleDeletebtn = async (id) => {
     try {
       await handleDelete(id);
-      await geCriminals();
+      navigate("/criminals");
+      await getCriminals();
     } catch (err) {
       console.error("Error deleting product:", err);
     }
@@ -60,8 +68,7 @@ const Criminals = () => {
   return (
     <div className="max-w-6xl mx-auto p-4">
       <h2 className="text-3xl font-bold text-center mb-6">Criminals List</h2>
-        <div className="flex justify-between  lg:flex-row flex-col gap-4 mb-4">
-
+      <div className="flex justify-between  lg:flex-row flex-col gap-4 mb-4">
         <input
           type="text"
           placeholder="Search by name"
@@ -223,7 +230,10 @@ const Criminals = () => {
               </div>
 
               <div className="mt-6 flex gap-5  justify-end">
-                <button className="px-4 py-2 bg-white-600 text-black rounded-md hover:bg-gray-950 border hover:text-white">
+                <button
+                  onClick={() => handleEditRedirect(selectedCriminal)}
+                  className="px-4 py-2 bg-white-600 text-black rounded-md hover:bg-gray-950 border hover:text-white"
+                >
                   Edit
                 </button>
                 <button

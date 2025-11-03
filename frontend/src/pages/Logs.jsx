@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { getLogs } from "../sevices/api";
+import { useEffect, useState } from "react";
+import { getLogs } from "../services/api";
 
 const Logs = () => {
   const [data, setData] = useState([]);
@@ -38,7 +38,9 @@ const Logs = () => {
 
   return (
     <div>
-      <h2 className="text-3xl font-bold text-center mb-6">Latest Detected logs</h2>
+      <h2 className="text-3xl font-bold text-center mb-6">
+        Latest Detected logs
+      </h2>
 
       <div className="relative overflow-x-auto">
         <table className="w-full text-sm text-left text-gray-500">

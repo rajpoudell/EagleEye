@@ -1,18 +1,18 @@
-import cv2
-import face_recognition
-import os
-import numpy as np
-from datetime import datetime, timedelta
-import threading
-import json
-
-from database import SessionLocal
-from models import Criminal  # Adjust this import based on your project structure
-from models import CriminalDetection,Camera
 # === Fetch known faces from the database ===
 import json
+import os
+import threading
+from datetime import datetime, timedelta
+
+import cv2
+import face_recognition
 import numpy as np
+from database import SessionLocal
+from models import \
+    Criminal  # Adjust this import based on your project structure
+from models import Camera, CriminalDetection
 from utils.email import send_email_alert
+
 
 def fetch_known_faces():
     session = SessionLocal()
@@ -65,11 +65,22 @@ if not known_face_encodings:
     print("[Warning] No known faces loaded.")
     # Avoid `exit()` to keep API running
 
+def open_capture(source):
+    cap = cv2.VideoCapture(source)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    return cap if cap.isOpened() else None
+
+
 # === Face Detection Function ===
 def process_camera(camera_id, source,location, stop_event):
     print(f"[Camera {camera_id}] Starting...")
     video_capture = cv2.VideoCapture(source)
 
+    cap = open_capture(source)
+    if not cap:
+        print(f"[Camera {camera_id}] Cannot open stream, retrying...")
+    
     if not video_capture.isOpened():
         log = f"[Camera {camera_id}] Error: Could not open camera."
         print(log)
@@ -156,15 +167,23 @@ def process_camera(camera_id, source,location, stop_event):
                         if camera:
                             camera.is_active = True
                         criminal = session.query(Criminal).filter(Criminal.UniqueID == criminal_id).first()
-                        
+
+                        # getting station gmail here 
+                        station_email = None
+                        if camera.station and hasattr(camera.station, 'Gmail'):
+                            station_email = camera.station.Gmail
+                            
+                        print(f"Station Email: {station_email}")
+                        # getting IO gmail here 
                         if criminal.io and hasattr(criminal.io, 'Gmail'):
                             recipient_email = criminal.io.Gmail
                             email_subject = f"Alert: {name} detected on Camera {location}"
-                            email_body = f"Criminal {name} was detected at {detection_time} on camera {camera_id} at location: {location}. Image: http://127.0.0.1:8000/image/{criminal.UniqueID}"
+                            email_body = f"Criminal {name} was detected at {detection_time} on camera {camera_id} at location: {location} for the crime : { ','.join(criminal.crimes)}  Image: http://127.0.0.1:8000/image/{criminal.UniqueID}"
                             send_email_alert(
                                 to_email=recipient_email,
                                 subject=email_subject,
-                                body=email_body
+                                body=email_body,
+                                cc_email=station_email
                             )
 
                     

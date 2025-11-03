@@ -15,10 +15,11 @@ smtp_config = {
     "smtp_password": os.getenv("SMTP_PASSWORD")
 }
 
-def send_email_alert(to_email, subject, body):
+def send_email_alert(to_email, subject, body,cc_email):
     msg = MIMEMultipart()
     msg['From'] = smtp_config['smtp_user']
     msg['To'] = to_email
+    msg['Cc'] = cc_email if cc_email else ''
     msg['Subject'] = subject
 
     msg.attach(MIMEText(body, 'plain'))

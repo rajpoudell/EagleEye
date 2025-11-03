@@ -1,14 +1,20 @@
-import React, { useEffect, useState } from "react";
-import Button from "../components/common/Button";
-import { addCriminal, getIO } from "../sevices/api";
+import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
+import { useLocation, useNavigate } from "react-router-dom";
+import { addCriminal, getIO, handleUpdate } from "../services/api";
+import crimes from "../utils/crimes";
 
 const AddCriminals = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const editingCriminal = location.state?.criminal || null;
+
   const [officersList, setOfficersList] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const [criminal, setCriminal] = useState({
     Name: "",
-    photo: null, // store actual File object here
+    photo: null,
     crimes: "",
     IO_ID: "",
     Address: "",
@@ -18,7 +24,7 @@ const AddCriminals = () => {
   useEffect(() => {
     async function fetchOfficers() {
       try {
-        const data = await getIO(); // Assume this returns array of officers
+        const data = await getIO();
         setOfficersList(data);
       } catch (error) {
         console.error("Failed to fetch officers:", error);
@@ -26,6 +32,18 @@ const AddCriminals = () => {
     }
     fetchOfficers();
   }, []);
+  useEffect(() => {
+    if (editingCriminal) {
+      setCriminal({
+        Name: editingCriminal.Name || "",
+        photo: editingCriminal.photo || "",
+        crimes: editingCriminal.crimes?.join(", ") || "",
+        IO_ID: editingCriminal.IO_ID || editingCriminal.io?.UniqueID || "",
+        Address: editingCriminal.Address || "",
+        contact: editingCriminal.contact || "",
+      });
+    }
+  }, [editingCriminal]);
 
   const onChange = (e) => {
     const { name, value, files, type } = e.target;
@@ -33,7 +51,7 @@ const AddCriminals = () => {
       const file = files[0];
       setCriminal((prev) => ({
         ...prev,
-        [name]: file || null, // store actual File object
+        [name]: file || null,
       }));
     } else {
       setCriminal((prev) => ({
@@ -46,37 +64,52 @@ const AddCriminals = () => {
   const onSubmit = async (e) => {
     e.preventDefault();
 
-    if (!criminal.photo) {
-      alert("Please select a photo file.");
-      return;
-    }
-
-    // Prepare formData for multipart/form-data POST
     setLoading(true);
-    const formData = new FormData();
-    formData.append("Name", criminal.Name);
-    formData.append("contact", criminal.contact);
-    formData.append("Address", criminal.Address);
-    formData.append("crimes", criminal.crimes);
-    formData.append("IO_ID", criminal.IO_ID);
-    formData.append("photo", criminal.photo); // actual File object
 
     try {
-      const response = await addCriminal(formData);
-      console.log(response.status);
-      // Optionally reset form after submission
-      setCriminal({
-        Name: "",
-        photo: null,
-        crimes: "",
-        IO_ID: "",
-        Address: "",
-        contact: "",
-      });
-      alert(response.message)
+      if (editingCriminal) {
+        const updateData = {
+          Name: criminal.Name,
+          contact: criminal.contact,
+          Address: criminal.Address,
+          IO_ID: Number(criminal.IO_ID),
+          crimes: criminal.crimes
+            ? criminal.crimes.split(",").map((c) => c.trim())
+            : [],
+        };
+
+        await handleUpdate(editingCriminal.UniqueID, updateData);
+        toast.success("Criminal updated successfully!", {
+          position: "top-right",
+        });
+      } else {
+        if (!criminal.photo) {
+          toast.error("Please select a photo file.", {
+            position: "top-right",
+          });
+          setLoading(false);
+          return;
+        }
+        const formData = new FormData();
+        formData.append("Name", criminal.Name);
+        formData.append("contact", criminal.contact);
+        formData.append("Address", criminal.Address);
+        formData.append("crimes", criminal.crimes);
+        formData.append("IO_ID", criminal.IO_ID);
+        formData.append("photo", criminal.photo);
+
+        await addCriminal(formData); // multipart/form-data
+        toast.success("Criminal added successfully!", {
+          position: "bottom-center",
+        });
+      }
+
+      navigate("/criminals"); // redirect after success
     } catch (error) {
       console.error("Submission failed:", error);
-      alert("Failed to add criminal");
+      toast.error("Failed to submit criminal data", {
+        position: "top-right",
+      });
     } finally {
       setLoading(false);
     }
@@ -84,7 +117,9 @@ const AddCriminals = () => {
 
   return (
     <>
-      <div className="text-xl text-center font-semibold mb-4">Add Criminal</div>
+      <div className="text-xl text-center font-semibold mb-4">
+        {editingCriminal ? "Edit Criminal" : "Add Criminal"}
+      </div>{" "}
       <form onSubmit={onSubmit} className="flex flex-col items-center">
         <div className="my-10 flex flex-wrap gap-5 justify-center">
           <div className="flex flex-col w-[300px] gap-2">
@@ -125,18 +160,24 @@ const AddCriminals = () => {
               required
             />
           </div>
-
           <div className="flex flex-col w-[300px] gap-2">
-            <label>Crimes:</label>
+            <label>
+              Crimes: <span className="text-xs">(comma-separated)</span>
+            </label>
             <input
               type="text"
               name="crimes"
               value={criminal.crimes}
               onChange={onChange}
-              placeholder="Enter crimes (comma-separated)"
+              placeholder="Enter crimes"
               className="px-2 py-2 outline rounded-sm"
-              required
+              list="crimes-list"
             />
+            <datalist id="crimes-list">
+              {crimes.map((crime, index) => (
+                <option key={index} value={crime} />
+              ))}
+            </datalist>
           </div>
 
           <div className="flex flex-col w-[300px] gap-2">
@@ -156,23 +197,37 @@ const AddCriminals = () => {
               ))}
             </select>
           </div>
-
           <div className="flex flex-col w-[300px] gap-2">
             <label>Photo:</label>
-            <input
-              type="file"
-              name="photo"
-              accept="image/*"
-              onChange={onChange}
-              className="px-2 py-2 outline rounded-sm"
-              required
-            />
-            {criminal.photo && (
+
+            {editingCriminal ? (
               <img
-                src={URL.createObjectURL(criminal.photo)}
-                alt="Preview"
+                src={`http://127.0.0.1:8000/image/${editingCriminal.UniqueID}`} // or UniqueID
+                alt="Criminal"
                 className="mt-2 w-40 h-40 mx-auto object-cover rounded shadow"
               />
+            ) : (
+              <>
+                <input
+                  type="file"
+                  name="photo"
+                  accept="image/*"
+                  onChange={onChange}
+                  className="px-2 py-2 outline rounded-sm"
+                  required
+                />
+                {criminal.photo && (
+                  <img
+                    src={
+                      typeof criminal.photo === "string"
+                        ? criminal.photo // existing URL if string
+                        : URL.createObjectURL(criminal.photo) // uploaded file preview
+                    }
+                    alt="Preview"
+                    className="mt-2 w-40 h-40 mx-auto object-cover rounded shadow"
+                  />
+                )}
+              </>
             )}
           </div>
         </div>
@@ -183,9 +238,12 @@ const AddCriminals = () => {
             loading ? "opacity-50 cursor-not-allowed" : ""
           }`}
         >
-          {loading ? "Submitting..." : "Add Criminal"}
+          {loading
+            ? "Submitting..."
+            : editingCriminal
+            ? "Update Criminal"
+            : "Add Criminal"}
         </button>
-        {/* <Button disabled={loading} name={loading ? "Submitting..." : "Add Criminal"} /> */}
       </form>
     </>
   );

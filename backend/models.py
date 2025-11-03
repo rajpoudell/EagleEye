@@ -3,6 +3,7 @@ from database import Base
 from sqlalchemy.orm import relationship
 from sqlalchemy import JSON
 from sqlalchemy.ext.mutable import MutableList
+from database import Base, engine
 
 
 
@@ -28,7 +29,7 @@ class CriminalDetection(Base):
     CriminalID = Column(Integer, ForeignKey("criminal.UniqueID"))  # Adjust if your table name is different
     CameraID = Column(Integer,ForeignKey("camera.UniqueID"))
     DateTime = Column(DateTime)
-    FullTexts = Column(String)
+    FullTexts = Column(String(255))
     # criminal = relationship("Criminal", back_populates="criminaldetections")  #
 
 class IO(Base):
@@ -48,3 +49,21 @@ class Camera(Base):
     camera_location = Column(String(100), nullable=True)
     camera_ip = Column(Text, nullable=True)
     is_active = Column(Boolean, nullable=True,default=False)
+    StationID = Column(Integer, ForeignKey("station.UniqueID"), nullable=True)
+    station = relationship("Station", back_populates="cameras")
+
+
+class Station(Base):
+    __tablename__ = "station"
+
+    UniqueID = Column(Integer, primary_key=True, autoincrement=True)
+    Name = Column(String(100), nullable=False)
+    Address = Column(Text, nullable=True)
+    contact_number = Column(String(20), nullable=True)
+    Gmail = Column(String(100), nullable=True)
+
+    cameras = relationship("Camera", back_populates="station")
+
+
+Base.metadata.create_all(bind=engine)
+print("✅ All tables created in eagleeye database!")

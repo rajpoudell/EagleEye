@@ -11,7 +11,27 @@ export const getIO = async () => {
     throw error;
   }
 };
-export const geCriminals = async () => {
+
+export const createIO = async (data) => {
+  const res = await axios.post(`${API_BASE_URL}/io/`, data);
+  return res.data;
+};
+
+export const deleteIO = async (id) => {
+  const res = await axios.delete(`${API_BASE_URL}/io/${id}`);
+  return res.data;
+};
+
+export const getStation = async () => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/station/`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching data:", error);
+    throw error;
+  }
+};
+export const getCriminals = async () => {
   try {
     const response = await axios.get(`${API_BASE_URL}/criminal/`);
     return response.data;
@@ -43,11 +63,16 @@ export const getLogs = async () => {
   }
 };
 
-export const handleUpdate = async (formData) => {
+export const handleUpdate = async (id, formData) => {
   try {
     const response = await axios.put(
-      `${API_BASE_URL}/criminal/${formData.UniqueID}`,
-      formData
+      `${API_BASE_URL}/criminal/${id}`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
     );
     return response;
     // Optionally refresh your criminal list here
@@ -57,14 +82,22 @@ export const handleUpdate = async (formData) => {
   }
 };
 
-export const handleDelete= async (id) => {
+export const handleDelete = async (id) => {
   try {
-    const response = await axios.delete(
-      `${API_BASE_URL}/criminal/${id}`
-    );
+    const response = await axios.delete(`${API_BASE_URL}/criminal/${id}`);
     return response;
   } catch (err) {
     console.error(err);
     alert("Failed to update criminal");
   }
+};
+
+export const createCamera = async (data) => {
+  const res = await axios.post(`${API_BASE_URL}/cameras/`, data);
+  return res.data;
+};
+
+export const deleteCamera = async (id) => {
+  const res = await axios.delete(`${API_BASE_URL}/cameras/${id}`);
+  return res.data;
 };

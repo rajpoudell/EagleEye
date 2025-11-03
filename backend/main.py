@@ -1,21 +1,18 @@
-from fastapi import FastAPI,Depends,UploadFile, File, Form, HTTPException
-import threading
-from face_recognition_service import process_camera, detection_logs,known_face_encodings,known_face_names
-from database import SessionLocal
-from sqlalchemy.orm import Session
-import os 
 import json
 import os
-from fastapi.responses import FileResponse
-from sqlalchemy.orm import joinedload
+import threading
+from typing import List, Optional
 
-from models import Criminal
-from models import Camera,IO,CriminalDetection
 import face_recognition
-from pydantic import BaseModel,Field
-from typing import Optional ,List
+from database import SessionLocal
+from face_recognition_service import (detection_logs, known_face_encodings,
+                                      known_face_names, process_camera)
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-
+from fastapi.responses import FileResponse
+from models import IO, Camera, Criminal, CriminalDetection, Station
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session, joinedload
 
 app = FastAPI(  title="Criminal Records API",
     description="API for managing criminal records with photo upload and encoding",
@@ -68,14 +65,70 @@ class CriminalOut(BaseModel):
 threads = {}
 stop_events = {}
 
+class CameraBase(BaseModel):
+    camera_location: Optional[str]
+    camera_ip: Optional[str]
+    StationID: Optional[int]
+    
+    
+class CameraCreate(CameraBase):
+    is_active: Optional[bool] = False
+    
+    
+    
+class CameraOut(CameraBase):
+    UniqueID: int
+    is_active: bool
+    station_Address: Optional[str] = None
+    station_email: Optional[str] = None
 
-
+    class Config:
+        orm_mode = True
 
 
 @app.get("/cameras/")
 def get_cameras(db: Session = Depends(get_db)):
-    return db.query(Camera).all()
+    cameras = db.query(Camera).options(joinedload(Camera.station)).all()
 
+    result = []
+    for camera in cameras:
+        result.append({
+            "UniqueID": camera.UniqueID,
+            "camera_ip": camera.camera_ip,
+            "is_active": camera.is_active,
+            "camera_location": camera.camera_location,
+            "station_Address": camera.station.Address if camera.station else None,
+            "station_email": camera.station.Gmail if camera.station else None
+        })
+    return result
+
+@app.post("/cameras/", response_model=CameraOut)
+def create_camera(camera: CameraCreate, db: Session = Depends(get_db)):
+    db_camera = Camera(
+        camera_location=camera.camera_location,
+        camera_ip=camera.camera_ip,
+        StationID=camera.StationID,
+        is_active=False  # server decides
+    )
+    
+    db.add(db_camera)
+    db.commit()
+    db.refresh(db_camera)
+    
+    return db_camera 
+    
+@app.delete("/cameras/{camera_id}")
+def delete_camera(camera_id: int, db: Session = Depends(get_db)):
+    camera = db.query(Camera).filter(Camera.UniqueID == camera_id).first()
+    if not camera:
+        raise HTTPException(status_code=404, detail="Camera not found")
+    
+    db.delete(camera)
+    db.commit()
+    return {"message": "Camera deleted successfully"}
+
+
+    
 @app.post("/start-cameras/")
 def start_cameras(db:Session=Depends(get_db)):
     cameras = db.query(Camera).all()
@@ -96,12 +149,15 @@ def start_cameras(db:Session=Depends(get_db)):
         camera.is_active = True
         stop_events[cam_id] = stop_event
         thread.start()
-        db.add(camera)  # mark instance as changed (optional but good practice)
+        db.add(camera)  
 
     # Commit all changes at once
     db.commit()        
 
     return {"status": "Started", "cameras": cam_id}
+
+
+
 
 @app.post("/stop-cameras/")
 def stop_cameras():
@@ -119,6 +175,7 @@ def stop_cameras():
         stop_events.pop(cam_id, None)
 
     return {"status": "All cameras stopped", "cameras": stopped_cameras}
+
 @app.post("/stop-camera/{cam_id}")
 def stop_camera(cam_id: int,db: Session = Depends(get_db)):
     cam_id = int(cam_id)
@@ -205,15 +262,45 @@ def get_image(unique_id: int):
 def get_io(db:Session=Depends(get_db)):
     return db.query(IO).all()
 
+@app.get("/station")
+def get_station(db:Session=Depends(get_db)):
+    return db.query(Station).all()
 
 
+class IOCreate(BaseModel):
+    Name: str
+    Station: str
+    Gmail: str
+    contact_number:str
 
+
+@app.post("/io/")
+def create_io(io: IOCreate, db: Session = Depends(get_db)):
+    new_io = IO(
+        Name=io.Name,
+        Station=io.Station,
+        Gmail=io.Gmail,
+        contact_number=io.contact_number,
+    )
+    db.add(new_io)
+    db.commit()
+    db.refresh(new_io)
+    return {"message": "IO created successfully", "data": new_io}
+
+@app.delete("/io/{io_id}")
+def delete_io(io_id: int, db: Session = Depends(get_db)):
+    io = db.query(IO).filter(IO.UniqueID == io_id).first()
+
+    if not io:
+        raise HTTPException(status_code=404, detail="IO not found")
+
+    db.delete(io)
+    db.commit()
+    return {"message": "IO deleted successfully"}
 
 
 
 UPLOAD_DIR = "uploads"
-
-
 known_face_encodings = []
 known_face_names = []
 
@@ -314,30 +401,6 @@ async def register_criminal(
     }
     
     
-class CriminalUpdate(BaseModel):
-    IO_ID: Optional[int] = None
-    Name: Optional[str] = None
-    photo: Optional[str] = None
-    Address: Optional[str] = None
-    contact: Optional[str] = None
-    crimes: Optional[List[str]] = None
-    location_history: Optional[List[dict]] = None
-    
-@app.put("/criminal/{criminal_id}", response_model=CriminalOut)
-def update_criminal(criminal_id: int, updated: CriminalUpdate, db: Session = Depends(get_db)):
-    db_criminal = db.query(Criminal).filter(Criminal.UniqueID == criminal_id).first()
-    if not db_criminal:
-        raise HTTPException(status_code=404, detail="Criminal not found")
-
-    for field, value in updated.dict(exclude_unset=True).items():
-        if field == "location_history":
-            setattr(db_criminal, field, json.dumps([entry.dict() for entry in value]))
-        else:
-            setattr(db_criminal, field, value)
-
-    db.commit()
-    db.refresh(db_criminal)
-    return db_criminal
 
 @app.delete("/criminal/{criminal_id}")
 def delete_criminal(criminal_id: int, db: Session = Depends(get_db)):
@@ -353,7 +416,29 @@ def delete_criminal(criminal_id: int, db: Session = Depends(get_db)):
 
 
 
+class CriminalUpdate(BaseModel):
+    IO_ID: Optional[int]
+    Name: Optional[str]
+    Address: Optional[str]
+    contact: Optional[str]
+    crimes: List[str] = Field(default_factory=list)
+        
+@app.put("/criminal/{criminal_id}")
+def update_criminal(criminal_id: int, criminal_data: CriminalUpdate, db: Session = Depends(get_db)):
+    db_criminal = db.query(Criminal).filter(Criminal.UniqueID == criminal_id).first()
+    if not db_criminal:
+        raise HTTPException(status_code=404, detail="Criminal not found")
+    for field, value in criminal_data.dict(exclude_unset=True).items():
+        setattr(db_criminal, field, value)
 
+    # db_criminal.Name = criminal.Name
+    # db_criminal.Address = criminal.Address
+    # db_criminal.contact = criminal.contact
+    # db_criminal.crimes = criminal.crimes
 
+    db.commit()
+    db.refresh(db_criminal)
+
+    return {"message": f"Criminal with ID {criminal_id} has been updated."}
 
 
